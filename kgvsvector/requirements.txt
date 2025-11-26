@@ -1,0 +1,10 @@
+streamlit==1.32.0
+PyMuPDF==1.22.3           # fitz for fast PDF extraction
+sentence-transformers==2.2.2
+numpy==1.26.4
+psycopg2-binary==2.9.9
+pgvector==0.4.1
+neo4j==5.18.0
+spacy==3.8.0
+python-dotenv==1.0.0
+openai==1.14.2             # optional: if you want to call OpenAI for final answer
