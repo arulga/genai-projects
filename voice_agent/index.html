@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Agent Test</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .status.disconnected {
+            background: #fee;
+            color: #c33;
+            border: 2px solid #fcc;
+        }
+
+        .status.connecting {
+            background: #ffeaa7;
+            color: #d63031;
+            border: 2px solid #fdcb6e;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #connectBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        #connectBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        #connectBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #disconnectBtn {
+            background: #e74c3c;
+            color: white;
+            display: none;
+        }
+
+        #disconnectBtn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(231, 76, 60, 0.4);
+        }
+
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .info strong {
+            color: #333;
+        }
+
+        .log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #2c3e50;
+            color: #ecf0f1;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #3498db;
+            padding-left: 10px;
+        }
+
+        .log-entry.error {
+            border-left-color: #e74c3c;
+        }
+
+        .log-entry.success {
+            border-left-color: #2ecc71;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎤 Voice Agent Test</h1>
+        <p class="subtitle">LiveKit Voice Assistant</p>
+
+        <div id="status" class="status disconnected">
+            ⚫ Disconnected
+        </div>
+
+        <button id="connectBtn">🚀 Connect to Voice Agent</button>
+        <button id="disconnectBtn">❌ Disconnect</button>
+
+        <div class="info">
+            <strong>Instructions:</strong><br>
+            1. Make sure the token server is running (python token_server.py)<br>
+            2. Make sure the voice agent is running (python voice_agent.py dev)<br>
+            3. Click "Connect" and allow microphone access<br>
+            4. Start speaking to test the agent!
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script type="module">
+        import { Room, RoomEvent } from 'https://cdn.jsdelivr.net/npm/livekit-client@2.5.0/dist/livekit-client.esm.mjs';
+
+        // Log successful load
+        console.log('LiveKit Library Loaded via ESM');
+
+
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+
+        let room = null;
+
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+        }
+
+        function updateStatus(text, state) {
+            statusDiv.textContent = text;
+            statusDiv.className = `status ${state}`;
+        }
+
+        connectBtn.addEventListener('click', async () => {
+            try {
+                connectBtn.disabled = true;
+                updateStatus('🔄 Connecting...', 'connecting');
+                log('Requesting access token from server...');
+
+                // Get token from token server
+                const tokenResponse = await fetch('http://127.0.0.1:8081/token?room=voice-room&identity=test-user');
+                if (!tokenResponse.ok) {
+                    throw new Error('Failed to get token. Make sure token_server.py is running!');
+                }
+
+                const { token, url } = await tokenResponse.json();
+                log('Token received successfully', 'success');
+                log(`Connecting to ${url}...`);
+
+                // Create and connect to room
+                room = new Room({
+                    adaptiveStream: true,
+                    dynacast: true,
+                });
+
+                log(`Room created with URL: ${url}`);
+                log(`Token length: ${token.length} chars`);
+
+                // Set up event listeners
+                room.on(RoomEvent.Connected, () => {
+                    log('✅ Room connected event fired!', 'success');
+                });
+
+                room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                    log(`📥 Subscribed to ${track.kind} track from ${participant.identity}`, 'success');
+                    if (track.kind === 'audio') {
+                        const audioElement = track.attach();
+                        document.body.appendChild(audioElement);
+                        log('🔊 Agent audio track attached');
+                    }
+                });
+
+                room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+                    log(`Track unsubscribed from ${participant.identity}`);
+                    track.detach();
+                });
+
+                room.on(RoomEvent.Disconnected, () => {
+                    log('❌ Disconnected from room', 'error');
+                    updateStatus('⚫ Disconnected', 'disconnected');
+                    connectBtn.style.display = 'block';
+                    disconnectBtn.style.display = 'none';
+                    connectBtn.disabled = false;
+                });
+
+                room.on(RoomEvent.ParticipantConnected, (participant) => {
+                    log(`👤 Participant joined: ${participant.identity}`, 'success');
+                });
+
+                room.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+                    log(`Connection quality: ${quality}`);
+                });
+
+                // Connect to the room
+                log('Attempting to connect to room...');
+                try {
+                    await room.connect(url, token);
+                    log('✅ Connected to room successfully!', 'success');
+                } catch (connectError) {
+                    log(`Connection error: ${connectError.message}`, 'error');
+                    throw connectError;
+                }
+
+                // Enable microphone
+                log('🎤 Enabling microphone...');
+                await room.localParticipant.setMicrophoneEnabled(true);
+                log('✅ Microphone enabled', 'success');
+
+                updateStatus('✅ Connected - Speak now!', 'connected');
+                connectBtn.style.display = 'none';
+                disconnectBtn.style.display = 'block';
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                if (error.stack) {
+                    console.error('Full error stack:', error.stack);
+                    log(`Details: ${error.stack.split('\n')[0]}`, 'error');
+                }
+                updateStatus('⚫ Disconnected', 'disconnected');
+                connectBtn.disabled = false;
+                console.error('Full error object:', error);
+            }
+        });
+
+        disconnectBtn.addEventListener('click', async () => {
+            if (room) {
+                await room.disconnect();
+                room = null;
+                log('Manually disconnected');
+            }
+        });
+
+        // Initial log
+        log('Ready to connect. Click the button above to start.');
+    </script>
+</body>
+
+</html>

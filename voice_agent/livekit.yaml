@@ -1,0 +1,11 @@
+port: 7880
+rtc:
+    udp_port: 7882
+    port_range_start: 50000
+    port_range_end: 50200
+    use_external_ip: false
+    node_ip: "127.0.0.1"
+keys:
+    devkey: devsecret
+logging:
+    level: info

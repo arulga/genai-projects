@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Connection Diagnostic Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #00ff00;
+        }
+
+        .test {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #555;
+        }
+
+        .pass {
+            background: #002200;
+        }
+
+        .fail {
+            background: #220000;
+            color: #ff0000;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        pre {
+            background: #000;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔍 LiveKit Connection Diagnostic</h1>
+
+    <button onclick="runTests()">Run All Tests</button>
+
+    <div id="results"></div>
+
+    <script type="module">
+        import { Room, RoomEvent } from 'https://cdn.jsdelivr.net/npm/livekit-client@2.5.0/dist/livekit-client.esm.mjs';
+        window.LiveKitClient = { Room, RoomEvent }; // Make it available globally for the existing logic
+    </script>
+    <script>
+        async function runTests() {
+            const results = document.getElementById('results');
+            results.innerHTML = '';
+
+            // Test 1: Token Server
+            try {
+                log('Test 1: Checking token server...');
+                const response = await fetch('http://localhost:8000/token?room=test&identity=tester');
+                const data = await response.json();
+
+                if (data.token && data.url) {
+                    pass('✅ Token server working!');
+                    log('Token: ' + data.token.substring(0, 50) + '...');
+                    log('URL: ' + data.url);
+
+                    // Test 2: Try connecting with LiveKit
+                    testLiveKit(data.url, data.token);
+                } else {
+                    fail('❌ Token server returned invalid data');
+                    log(JSON.stringify(data, null, 2));
+                }
+            } catch (err) {
+                fail('❌ Token server error: ' + err.message);
+                log(err.stack);
+            }
+        }
+
+        function testLiveKit(url, token) {
+            log('Test 2: Attempting WebSocket connection to ' + url);
+
+            // Try to connect with WebSocket directly first
+            try {
+                const wsUrl = url.replace('ws://', '').replace('wss://', '');
+                const ws = new WebSocket('ws://' + wsUrl);
+
+                ws.onopen = () => {
+                    pass('✅ WebSocket connection established!');
+                    ws.close();
+
+                    // Now try LiveKit client if available
+                    if (typeof LiveKitClient !== 'undefined') {
+                        testLiveKitClient(url, token);
+                    } else {
+                        warn('⚠️ LiveKit client not loaded, skipping client test');
+                    }
+                };
+
+                ws.onerror = (err) => {
+                    fail('❌ WebSocket error: ' + err);
+                    log('Could not establish WebSocket connection to LiveKit server');
+                };
+
+                ws.onclose = () => {
+                    log('WebSocket closed');
+                };
+
+            } catch (err) {
+                fail('❌ WebSocket test failed: ' + err.message);
+                log(err.stack);
+            }
+        }
+
+        async function testLiveKitClient(url, token) {
+            log('Test 3: LiveKit Client Connection Test');
+            // This would require loading the LiveKit client library
+            // Skipping for now as this is a diagnostic tool
+        }
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.className = 'test';
+            div.innerHTML = '<pre>' + msg + '</pre>';
+            document.getElementById('results').appendChild(div);
+        }
+
+        function pass(msg) {
+            const div = document.createElement('div');
+            div.className = 'test pass';
+            div.textContent = msg;
+            document.getElementById('results').appendChild(div);
+        }
+
+        function fail(msg) {
+            const div = document.createElement('div');
+            div.className = 'test fail';
+            div.textContent = msg;
+            document.getElementById('results').appendChild(div);
+        }
+
+        function warn(msg) {
+            const div = document.createElement('div');
+            div.className = 'test';
+            div.style.background = '#222200';
+            div.style.color = '#ffff00';
+            div.textContent = msg;
+            document.getElementById('results').appendChild(div);
+        }
+    </script>
+</body>
+
+</html>

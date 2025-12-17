@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <h2>LiveKit Library Debug</h2>
+    <script src="livekit-client.js"
+        onerror="document.body.innerHTML += '<p style=color:red>Failed to load script</p>'"></script>
+    <script>
+        window.onload = function () {
+            const lib = window.LivekitClient || window.LiveKitClient;
+            const output = [];
+            output.push('Global LivekitClient found: ' + (!!window.LivekitClient));
+            output.push('Global LiveKitClient found: ' + (!!window.LiveKitClient));
+
+            if (lib) {
+                const keys = Object.keys(lib);
+                output.push('\nExported Keys: ' + JSON.stringify(keys, null, 2));
+
+                if (lib.Room) {
+                    output.push('\n✅ Room class found');
+                } else {
+                    output.push('\n❌ Room class NOT found');
+                }
+
+                if (lib.RoomEvent) {
+                    output.push('\n✅ RoomEvent object found');
+                } else {
+                    output.push('\n❌ RoomEvent object NOT found');
+                }
+            } else {
+                output.push('\n❌ No library global found');
+            }
+
+            const pre = document.createElement('pre');
+            pre.textContent = output.join('\n');
+            document.body.appendChild(pre);
+        }
+    </script>
+</body>
+
+</html>
